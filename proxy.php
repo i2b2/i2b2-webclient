@@ -62,7 +62,7 @@ $matches = array();
 $config_file = fopen("i2b2_config_domains.json", "r");
 if ($config_file) {
     while (($line = fgets($config_file)) !== false) {
-        if(strpos($line, "urlCellPM:") !== false) $matches[] = $line;
+        if(strpos($line, "urlCellPM") !== false) $matches[] = $line;
     }
     fclose($config_file);
 }
