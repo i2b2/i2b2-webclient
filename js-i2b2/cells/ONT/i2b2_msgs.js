@@ -422,15 +422,16 @@ i2b2.ONT.cfg.msgs.GetNameInfo = '<?xml version="1.0" encoding="UTF-8" standalone
 '        <result_waittime_ms>{{{result_wait_time}}}000</result_waittime_ms>\n'+
 '    </request_header>\n'+
 '    <message_body>\n'+
-'        <ns4:get_name_info blob="true" type="core" reducedResults="true" keyname="true" {{{ont_max_records}}} hiddens="{{{ont_hidden_records}}}" synonyms="{{{ont_synonym_records}}}" category="{{{ont_category}}}">\n'+
+'        <ns4:get_name_info blob="true" type="core" {{{ont_reduced_results}}} keyname="{{{ont_keyname}}}" ancestors="{{{ont_ancestors}}}" {{{ont_max_records}}} hiddens="{{{ont_hidden_records}}}" synonyms="{{{ont_synonym_records}}}" category="{{{ont_category}}}">\n'+
 '            <match_str strategy="{{{ont_search_strategy}}}">{{{ont_search_string}}}</match_str>\n'+
+'            {{{ont_self}}}'+
 '        </ns4:get_name_info>\n'+
 '    </message_body>\n'+
 '</ns3:request>';
 i2b2.ONT.ajax._addFunctionCall(	"GetNameInfo",
                                 "{{{URL}}}getNameInfo",
                                 i2b2.ONT.cfg.msgs.GetNameInfo,
-                                null,
+                                ["ont_reduced_results", "ont_self"],
                                 i2b2.ONT.cfg.parsers.ExtractConcepts);
 
 

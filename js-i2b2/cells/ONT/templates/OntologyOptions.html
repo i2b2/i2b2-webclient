@@ -62,5 +62,13 @@
         {{/if}}
         <label for="ONTNAVdisableOptSearch"> Disable Optimized Search </label>
     </div>
+    <div class="ontOptionSection">
+        {{#if useAncestorSearch}}
+        <input type="checkbox" id="ONTNAVuseAncestorSearch" class="ontologyCheckboxOptions" checked/>
+        {{else}}
+        <input type="checkbox" id="ONTNAVuseAncestorSearch" />
+        {{/if}}
+        <label for="ONTNAVuseAncestorSearch"> Use Ancestor Term Search </label>
+    </div>
 
 </div>

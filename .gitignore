@@ -2,3 +2,6 @@
 
 # Ignore React Build Artifacts
 node_modules/
+js-i2b2/cells/ONT/.DS_Store
+
+js-i2b2/cells/.DS_Store

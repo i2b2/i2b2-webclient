@@ -249,6 +249,7 @@ i2b2.events.afterCellInit.add((cell) => {
                         i2b2.ONT.view.nav.params.showConceptCode = $('#ONTNAVshowCodeTooltips').is(":checked");
                         i2b2.ONT.view.nav.params.showShortTooltips = $('#ONTNAVshowShortTooltips').is(":checked");
                         i2b2.ONT.view.nav.params.fullSearch = $('#ONTNAVdisableOptSearch').is(":checked");
+                        i2b2.ONT.view.nav.params.useAncestorSearch = $('#ONTNAVuseAncestorSearch').is(":checked");
 
                         i2b2.ONT.view.nav.doRefreshAll();
                         $("#ontOptionsModal div").eq(0).modal("hide");
@@ -309,6 +310,7 @@ i2b2.events.afterCellInit.add((cell) => {
                         modifiers: false,
                         synonyms: false,
                         hiddens: false,
+                        useAncestorSearch: true,
                         max: 200
                     }, i2b2.ONT.view.nav.params);
 
