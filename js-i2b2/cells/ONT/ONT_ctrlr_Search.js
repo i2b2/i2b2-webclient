@@ -79,6 +79,7 @@ i2b2.ONT.ctrlr.Search = {
 
         let scopedCallback = new i2b2_scopedCallback();
         scopedCallback.scope = this;
+        let searchResultKeys = [];
         // define our callback function
         scopedCallback.callback = function(results) {
             searchCatsCount++;
@@ -97,7 +98,7 @@ i2b2.ONT.ctrlr.Search = {
                 let c = results.refXML.getElementsByTagName('concept');
                 for (let i=0; i<1*c.length; i++) {
                     i2b2.ONT.model.searchResultCount++;
-                    i2b2.ONT.ctrlr.Search.addResultNode(c[i], true);
+                    searchResultKeys.push(i2b2.h.getXNodeVal(c[i], 'key'));
                 }
             } else {
                 alert("An error has occurred in the Cell's AJAX library.\n Press F12 for more information");
@@ -119,12 +120,7 @@ i2b2.ONT.ctrlr.Search = {
                         $('i.srTooltip').attr('data-bs-original-title', "Not all results are displayed! A maximum of " + i2b2.ONT.view.nav.params.max + " records per category were returned.");
                     }
                     status[0].innerHTML = disp;
-                    if(i2b2.ONT.view.nav.params.fullSearch) {
-                        i2b2.ONT.ctrlr.Search.backfillResultNodes();
-                    }
-                    else{
-                        i2b2.ONT.ctrlr.Search.backfillResultNodes_fast();
-                    }
+                    i2b2.ONT.ctrlr.Search.loadAncestorResultNodes(searchResultKeys);
                 }
             }
         };
@@ -269,6 +265,89 @@ i2b2.ONT.ctrlr.Search = {
     },
 
 // ================================================================================================== //
+    renderResultNodes: function() {
+        let treeStruct = [];
+        let func_crawl_builder = (node, parent) => {
+            let ret = [];
+            let bypass = ((node._$$_ === undefined && node._$R$_ === undefined) || (node._$$_ !== undefined && parent === null)) && !((Object.keys(node).length === 2 || parent === null) && node._$$_ !== undefined && node._$R$_ !== undefined);
+            if (bypass) {
+                // passes back only a collection of child nodes (which should be built)
+                // this bubbles up navigatable nodes through non-navigatable nodes
+                for (let subpath in node) {
+                    if (!["_$$_", "_$R$_"].includes(subpath)) {
+                        ret = ret.concat(func_crawl_builder(node[subpath], parent));
+                    }
+                }
+            } else {
+                // passes back current node fully built with its "nodes" attribute populated
+                ret = node._$$_ !== undefined ? node._$$_ : node._$R$_;
+                if (node._$R$_ && node._$$_ === undefined) {
+                    ret = node._$R$_;
+                }
+                ret.state = {
+                    loaded: true,
+                    expanded: true
+                };
+                let children = [];
+                for (let subpath in node) {
+                    if (!["_$$_", "_$R$_"].includes(subpath)) {
+                        children = children.concat(func_crawl_builder(node[subpath], node));
+                    }
+                }
+                ret.nodes = children
+            }
+            return ret;
+        };
+
+        for (let subpath in i2b2.ONT.model.searchResults) {
+            let subtree = func_crawl_builder(i2b2.ONT.model.searchResults[subpath], null);
+            treeStruct = treeStruct.concat(subtree);
+        }
+
+        // display the tree
+        i2b2.ONT.view.search.displayResults(treeStruct);
+    },
+
+// ================================================================================================== //
+    loadAncestorResultNodes: function(searchResultKeys) {
+        searchResultKeys = searchResultKeys.filter((key) => key !== undefined && key !== null && key.length > 0);
+        let loadCount = searchResultKeys.length;
+
+        if (loadCount === 0) {
+            i2b2.ONT.ctrlr.Search.renderResultNodes();
+            return;
+        }
+
+        let scopedCallback = new i2b2_scopedCallback();
+        scopedCallback.scope = this;
+        scopedCallback.callback = function(results) {
+            if (!results.error) {
+                let c = results.refXML.getElementsByTagName('concept');
+                for(let i=0; i<1*c.length; i++) {
+                    i2b2.ONT.ctrlr.Search.addResultNode(c[i], i === c.length - 1);
+                }
+            } else {
+                alert("An error has occurred in the Cell's AJAX library.\n Press F12 for more information");
+            }
+
+            loadCount = loadCount - 1;
+            if (loadCount === 0) {
+                i2b2.ONT.ctrlr.Search.renderResultNodes();
+            }
+        };
+
+        let searchOptions = {};
+        searchOptions.ont_max_records = "max='200'";
+        searchOptions.ont_synonym_records = i2b2.ONT.view.nav.params.synonyms;
+        searchOptions.ont_hidden_records = i2b2.ONT.view.nav.params.hiddens;
+
+        for (let i=0; i<searchResultKeys.length; i++) {
+            searchOptions.concept_key_value = searchResultKeys[i];
+            i2b2.ONT.ajax.GetTermInfoWithAncestors("ONT:Search", searchOptions, scopedCallback);
+        }
+    },
+
+// ================================================================================================== //
     backfillResultNodes: function() {
         let model = i2b2.ONT.model.searchResults;
         let nodesToLoad = [];
@@ -323,9 +402,8 @@ i2b2.ONT.ctrlr.Search = {
                     } else {
                         // passes back current node fully built with its "nodes" attribute populated
                         ret = node._$$_ !== undefined ? node._$$_ : node._$R$_;
-                        if (node._$R$_) {
+                        if (node._$R$_ && node._$$_ === undefined) {
                             ret = node._$R$_;
-                            if (node._$$_) ret.icon = node._$$_.icon; 
                         }
                         ret.state = {
                             loaded: true,
@@ -429,9 +507,8 @@ i2b2.ONT.ctrlr.Search = {
             } else {
                 // passes back current node fully built with its "nodes" attribute populated
                 ret = node._$$_ !== undefined ? node._$$_ : node._$R$_;
-                if (node._$R$_) {
+                if (node._$R$_ && node._$$_ === undefined) {
                     ret = node._$R$_;
-                    if (node._$$_) ret.icon = node._$$_.icon;
                 }
                 ret.state = {
                     loaded: true,
