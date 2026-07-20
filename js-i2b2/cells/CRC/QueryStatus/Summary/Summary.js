@@ -44,6 +44,9 @@ export default class Summary {
                 // update the display
                 $(this.config.displayEl).empty();
                 const renderData = {...this.record, showQueryButton: this.config.definition.showQueryButton};
+                if (typeof renderData.patientCount !== "undefined") {
+                    renderData.patientCountHtml = String(renderData.patientCount).replaceAll("+/-", i2b2.CRC.QueryStatus.plusMinus("html"));
+                }
                 $(this.template(renderData)).appendTo(this.config.displayEl);
             }
             return true;

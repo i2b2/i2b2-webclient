@@ -187,12 +187,10 @@ let parseData = function(xmlData) {
         entryRecord.value = parseInt(params[i2].firstChild.nodeValue);
         entryRecord.display = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(params[i2].firstChild.nodeValue);
 
-        if(entryRecord.display.indexOf("±") !== -1){
+        if(entryRecord.display.indexOf("+/-") !== -1){
             breakdown.isObfuscated = true;
         }
 
-        // fix issues with MS Excel's use of Microsoft-codepages
-        entryRecord.display = entryRecord.display.replaceAll('±', ' +/- ');
         // Override the display value if specified by server setting the "display" attribute
         if (typeof params[i2].attributes.display !== 'undefined') {
             entryRecord.value = i2b2.h.Unescape(entryRecord.value);

@@ -21,6 +21,18 @@ i2b2.CRC.QueryStatus = {
     ]
 };
 
+i2b2.CRC.QueryStatus.plusMinus = function(format) {
+    return format === "html" ? "&plusmn;" : "+/-";
+};
+
+i2b2.CRC.QueryStatus.formatObfuscation = function(number, obfuscateValue, format) {
+    return parseInt(number).toLocaleString() + i2b2.CRC.QueryStatus.plusMinus(format) + parseInt(obfuscateValue).toLocaleString();
+};
+
+i2b2.CRC.QueryStatus.formatObfuscationValue = function(obfuscateValue, format) {
+    return i2b2.CRC.QueryStatus.plusMinus(format) + parseInt(obfuscateValue).toLocaleString();
+};
+
 i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber = function(number, floorValue, obfuscateValue) {
     // this function is used by all the breakdown modules to generate the display numbers
     number = parseInt(number);
@@ -51,14 +63,18 @@ i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber = function(number, floorValue, 
     if (typeof obfuscateValue === "undefined" || (!obfuscateValue && obfuscateValue !== 0)) {
         // deal with the obfuscate number
         if (i2b2.PM.model.isObfuscated && i2b2.UI?.cfg?.obfuscatedDisplayNumber) {
-            return parseInt(number).toLocaleString() + "±" + parseInt(i2b2.UI.cfg.obfuscatedDisplayNumber).toLocaleString();
+            return i2b2.CRC.QueryStatus.formatObfuscation(number, i2b2.UI.cfg.obfuscatedDisplayNumber);
         } else {
             return parseInt(number).toLocaleString();
         }
     } else if (typeof obfuscateValue === "number" && obfuscateValue > 0) {
-        return parseInt(number).toLocaleString() + "±" + parseInt(obfuscateValue).toLocaleString();
+        return i2b2.CRC.QueryStatus.formatObfuscation(number, obfuscateValue);
     }
     return parseInt(number).toLocaleString();
+};
+
+i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumberHtml = function(number, floorValue, obfuscateValue) {
+    return i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(number, floorValue, obfuscateValue).replaceAll("+/-", i2b2.CRC.QueryStatus.plusMinus("html"));
 };
 
 i2b2.CRC.QueryStatus.obfuscateValue = function(obfuscateValue) {
@@ -66,12 +82,12 @@ i2b2.CRC.QueryStatus.obfuscateValue = function(obfuscateValue) {
     if (typeof obfuscateValue === "undefined" || (!obfuscateValue && obfuscateValue !== 0)) {
         // deal with the obfuscate number
         if (i2b2.PM.model.isObfuscated && i2b2.UI?.cfg?.obfuscatedDisplayNumber) {
-            return  "±" + parseInt(i2b2.UI.cfg.obfuscatedDisplayNumber).toLocaleString();
+            return i2b2.CRC.QueryStatus.formatObfuscationValue(i2b2.UI.cfg.obfuscatedDisplayNumber);
         } else {
             return "";
         }
     } else if (typeof obfuscateValue === "number" && obfuscateValue > 0) {
-        return "±" + parseInt(obfuscateValue).toLocaleString();
+        return i2b2.CRC.QueryStatus.formatObfuscationValue(obfuscateValue);
     }
     return "";
 };
@@ -291,7 +307,7 @@ i2b2.CRC.QueryStatus._getTitle = function(resultType, oRecord, oXML) {
             // create the title using shrine setting
             if (oRecord.size >= 10) {
                 if (i2b2.PM.model.isObfuscated) {
-                    title = t+" - "+oRecord.size + "±" + i2b2.UI.cfg.obfuscatedDisplayNumber.toString()+" encounters";
+                    title = t+" - "+i2b2.CRC.QueryStatus.formatObfuscation(oRecord.size, i2b2.UI.cfg.obfuscatedDisplayNumber)+" encounters";
                 } else {
                     title = t;
                 }
@@ -313,7 +329,7 @@ i2b2.CRC.QueryStatus._getTitle = function(resultType, oRecord, oXML) {
             // create the title using shrine setting
             if (oRecord.size >= 10) {
                 if (i2b2.PM.model.isObfuscated) {
-                    title = p+" - "+oRecord.size + "±" + i2b2.UI.cfg.obfuscatedDisplayNumber.toString()+" patients";
+                    title = p+" - "+i2b2.CRC.QueryStatus.formatObfuscation(oRecord.size, i2b2.UI.cfg.obfuscatedDisplayNumber)+" patients";
                 } else {
                     title = p;
                 }
@@ -337,7 +353,7 @@ i2b2.CRC.QueryStatus._getTitle = function(resultType, oRecord, oXML) {
             // create the title using shrine setting
             if (oRecord.size >= 10) {
                 if (i2b2.PM.model.isObfuscated) {
-                    title = x+" - "+oRecord.size + "±" + i2b2.UI.cfg.obfuscatedDisplayNumber.toString()+" patients";
+                    title = x+" - "+i2b2.CRC.QueryStatus.formatObfuscation(oRecord.size, i2b2.UI.cfg.obfuscatedDisplayNumber)+" patients";
                 } else {
                     title = x+" - "+oRecord.size+" patients";
                 }
@@ -979,7 +995,6 @@ i2b2.CRC.QueryStatus._handleQueryResultInstance = function(results) {
         console.error("Failed to initialize QueryStatus engine: ", error);
     }
 })();
-
 
 
 

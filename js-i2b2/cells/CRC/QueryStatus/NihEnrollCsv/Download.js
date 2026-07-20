@@ -101,18 +101,14 @@ export default class NihEnrollCsv {
                         colIdx = parseInt(ethnicityIdx * 3) + parseInt(sexIdx);
                         // cell value
                         renderArray[idx][colIdx] = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(dataTree[race][sexKey][ethnicityKey].value, 0, 0)
-                        // fix issues with MS Excel's use of Microsoft-codepages
-                        renderArray[idx][colIdx] = renderArray[idx][colIdx].replaceAll('±', ' +/- ');
                         // increment row value
                         count += parseInt(dataTree[race][sexKey][ethnicityKey].value);
                         // increment column value
                         totalEthnicSex[colIdx] += parseInt(dataTree[race][sexKey][ethnicityKey].value);
                     }
                 }
-                obfuscateValues[idx] = i2b2.CRC.QueryStatus.obfuscateValue().replaceAll('±', ' +/- ');
+                obfuscateValues[idx] = i2b2.CRC.QueryStatus.obfuscateValue();
                 renderArray[idx][9] = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(count, 0, 0);
-                // fix issues with MS Excel's use of Microsoft-codepages
-                renderArray[idx][9] = renderArray[idx][9].replaceAll('±', ' +/- ');
             }
 
             // update the grand total on the last row
@@ -121,11 +117,9 @@ export default class NihEnrollCsv {
             // place the updated totals on last row
             for (let idx = 0; idx < 10; idx++) {
                 totalEthnicSex[idx] = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(totalEthnicSex[idx], 0, 0);
-                // fix issues with MS Excel's use of Microsoft-codepages
-                totalEthnicSex[idx] = totalEthnicSex[idx].replaceAll('±', ' +/- ');
             }
             renderArray[7] = totalEthnicSex;
-            obfuscateValues[7] = i2b2.CRC.QueryStatus.obfuscateValue().replaceAll('±', ' +/- ');;
+            obfuscateValues[7] = i2b2.CRC.QueryStatus.obfuscateValue();
             // ==================================================================
             // render the template using the data
             if (typeof this.renderTemplate === 'undefined') return false;
@@ -205,4 +199,3 @@ let parseData = function(xmlData) {
 
     return breakdown;
 }
-

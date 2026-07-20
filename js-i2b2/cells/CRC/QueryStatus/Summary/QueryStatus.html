@@ -64,12 +64,12 @@
                     </tr>
                     <tr style="background-color: #ed9b40">
                         <td id="patientCountLine2" style="color: black; text-align: center; vertical-align: middle; font-size: 45px">
-                            {{patientCount}}
+                            {{{patientCountHtml}}}
                         </td>
                     </tr>
                     {{#if isShrine}}
                         <td id="patientCountLine3" style="color: black; text-align: center; vertical-align: middle;">
-                            Multiple sites reporting up to {{patientCount}} patients
+                            Multiple sites reporting up to {{{patientCountHtml}}} patients
                         </td>
                     {{/if}}
                     <tr style="background-color: white">

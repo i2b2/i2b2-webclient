@@ -104,14 +104,14 @@ export default class Count {
                 }
 
                 // count
-                countEl.innerHTML = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(count, obfuscateFloor, obfuscateDisplay);
+                countEl.innerHTML = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumberHtml(count, obfuscateFloor, obfuscateDisplay);
 
                 // sites reporting
                 let sitesContainer = refContainer.querySelector('.count-sites');
                 sitesContainer.innerHTML = status + ": " + sitesDone + " out of " + sitesTotal + " sites reporting";
                 sitesContainer.style.display = "block";
             } else {
-                countEl.innerHTML = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumber(count);
+                countEl.innerHTML = i2b2.CRC.QueryStatus.obfuscateFloorDisplayNumberHtml(count);
             }
             // show everything
              refContainer.style.display = 'block';

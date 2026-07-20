@@ -356,7 +356,7 @@ i2b2.CRC.ctrlr.QueryMgr._callbackGetQueryMaster.callback = function(results) {
                     if (i2b2.UI.cfg.useFloorThreshold && pCount < i2b2.UI.cfg.floorThresholdNumber) {
                         pCount = i2b2.UI.cfg.floorThresholdText + i2b2.UI.cfg.floorThresholdNumber;
                     } else {
-                        pCount = pCount.toString() + "±" + i2b2.UI.cfg.obfuscatedDisplayNumber.toString();
+                        pCount = i2b2.CRC.QueryStatus.formatObfuscation(pCount, i2b2.UI.cfg.obfuscatedDisplayNumber);
                     }
                 }
                 i2b2.CRC.model.runner.patientCount = pCount
@@ -459,7 +459,7 @@ i2b2.CRC.ctrlr.QueryMgr._callbackGetQueryStatus.callback = function(results) {
                 if (i2b2.UI.cfg.useFloorThreshold && pCount < i2b2.UI.cfg.floorThresholdNumber) {
                     pCount = i2b2.UI.cfg.floorThresholdText + i2b2.UI.cfg.floorThresholdNumber;
                 } else {
-                    pCount = pCount.toString() + "±" + i2b2.UI.cfg.obfuscatedDisplayNumber.toString();
+                    pCount = i2b2.CRC.QueryStatus.formatObfuscation(pCount, i2b2.UI.cfg.obfuscatedDisplayNumber);
                 }
             }
             i2b2.CRC.model.runner.patientCount = pCount
