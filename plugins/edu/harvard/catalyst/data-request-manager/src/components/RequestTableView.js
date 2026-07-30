@@ -12,7 +12,10 @@ import {generateDataFile, listRequestTable} from "../reducers/requestTableSlice"
 import "./RequestTableView.scss";
 import {decode} from "html-entities";
 import {ConfirmDialog} from "./ConfirmDialog";
+import {AlertDialog} from "./AlertDialog";
 import {RequestStatus} from "../models";
+
+const DATA_EXPORT_PATIENT_LIMIT = 3000;
 
 export const RequestTableView = ({ userInfo, displayDetailView}) => {
     const dispatch = useDispatch();
@@ -24,6 +27,7 @@ export const RequestTableView = ({ userInfo, displayDetailView}) => {
         = useSelector((state) => state.configInfo);
     const [confirmFileGen, setConfirmFileGen] = React.useState(false);
     const [createFileData, setCreateFileData] = React.useState({});
+    const [exportLimitError, setExportLimitError] = React.useState(null);
 
     const columns = [
         {
@@ -138,7 +142,7 @@ export const RequestTableView = ({ userInfo, displayDetailView}) => {
                     <div className={"actions"}>
 
                         {(isManager || isAdmin) && <div><Button title={"Create File(s)"} className={"createFileBtn"} color="primary" variant="contained" size="small"
-                                          onClick={() => handleConfirmFileCreate(param.row.id, param.row.queryInstanceId)}
+                                          onClick={() => handleConfirmFileCreate(param.row)}
                                                    disabled={param.row.status === RequestStatus.statuses.PROCESSING
                                                        || param.row.status === RequestStatus.statuses.QUEUED
                                                        || param.row.status === RequestStatus.statuses.FINISHED
@@ -159,11 +163,17 @@ export const RequestTableView = ({ userInfo, displayDetailView}) => {
         }
     ];
 
-    const handleConfirmFileCreate = (queryMasterId, queryInstanceId) => {
+    const handleConfirmFileCreate = (row) => {
+        const patientCount = parseInt(String(row.patientCount).replace(/,/g, ''), 10);
+        if (!isNaN(patientCount) && patientCount > DATA_EXPORT_PATIENT_LIMIT) {
+            setExportLimitError(`Request ${row.id} has ${row.patientCount} patients. Data exports are limited to ${DATA_EXPORT_PATIENT_LIMIT.toLocaleString()} patients.`);
+            return;
+        }
+
         setConfirmFileGen(true);
         setCreateFileData({
-            queryMasterId,
-            queryInstanceId
+            queryMasterId: row.id,
+            queryInstanceId: row.queryInstanceId
         });
     }
     const handleDisplayDetailView = (requestRow) => {
@@ -270,6 +280,12 @@ export const RequestTableView = ({ userInfo, displayDetailView}) => {
                 title="Create Data File(s)"
                 onOk = {handleCreateFile}
                 onCancel = {() => setConfirmFileGen(false)}
+            />
+            }
+            {exportLimitError && <AlertDialog
+                msg={exportLimitError}
+                title="Export Limit Exceeded"
+                onOk={() => setExportLimitError(null)}
             />
             }
         </Box>

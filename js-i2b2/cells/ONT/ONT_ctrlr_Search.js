@@ -60,9 +60,15 @@ i2b2.ONT.ctrlr.Search = {
         // VERIFY that the above information has been passed
         if (!inSearchData) return false;
 
+        // Use ONT server-side support for searching all ontologies via category="@";
+        // set this false to restore the client-side per-category fan-out.
+        const useServerAllCategoriesSearch = true;
+
         // special client processing to search all categories
         let searchCats = [];
-        if (inSearchData.Category === "ALL CATEGORIES") {
+        if (inSearchData.Category === "ALL CATEGORIES" && useServerAllCategoriesSearch) {
+            searchCats.push("@");
+        } else if (inSearchData.Category === "ALL CATEGORIES") {
             let d = i2b2.ONT.model.Categories;
             let l = d.length;
             // build list of all categories to search
@@ -79,7 +85,7 @@ i2b2.ONT.ctrlr.Search = {
 
         let scopedCallback = new i2b2_scopedCallback();
         scopedCallback.scope = this;
-        let searchResultKeys = [];
+        let useAncestorSearch = i2b2.ONT.view.nav.params.useAncestorSearch !== false;
         // define our callback function
         scopedCallback.callback = function(results) {
             searchCatsCount++;
@@ -97,8 +103,14 @@ i2b2.ONT.ctrlr.Search = {
             if (!hasError) {
                 let c = results.refXML.getElementsByTagName('concept');
                 for (let i=0; i<1*c.length; i++) {
-                    i2b2.ONT.model.searchResultCount++;
-                    searchResultKeys.push(i2b2.h.getXNodeVal(c[i], 'key'));
+                    if (useAncestorSearch) {
+                        let isSearchResult = String(i2b2.h.getXNodeVal(c[i], 'search_result')).toLowerCase() === "true";
+                        if (isSearchResult) i2b2.ONT.model.searchResultCount++;
+                        i2b2.ONT.ctrlr.Search.addResultNode(c[i], isSearchResult);
+                    } else {
+                        i2b2.ONT.model.searchResultCount++;
+                        i2b2.ONT.ctrlr.Search.addResultNode(c[i], true);
+                    }
                 }
             } else {
                 alert("An error has occurred in the Cell's AJAX library.\n Press F12 for more information");
@@ -120,7 +132,13 @@ i2b2.ONT.ctrlr.Search = {
                         $('i.srTooltip').attr('data-bs-original-title', "Not all results are displayed! A maximum of " + i2b2.ONT.view.nav.params.max + " records per category were returned.");
                     }
                     status[0].innerHTML = disp;
-                    i2b2.ONT.ctrlr.Search.loadAncestorResultNodes(searchResultKeys);
+                    if (useAncestorSearch) {
+                        i2b2.ONT.ctrlr.Search.renderResultNodes();
+                    } else if(i2b2.ONT.view.nav.params.fullSearch) {
+                        i2b2.ONT.ctrlr.Search.backfillResultNodes();
+                    } else {
+                        i2b2.ONT.ctrlr.Search.backfillResultNodes_fast();
+                    }
                 }
             }
         };
@@ -133,6 +151,9 @@ i2b2.ONT.ctrlr.Search = {
         searchOptions.ont_hidden_records = i2b2.ONT.view.nav.params.hiddens;
         searchOptions.ont_reduce_results = false;
         searchOptions.ont_hierarchy = false;
+        searchOptions.ont_keyname = "true";
+        searchOptions.ont_ancestors = useAncestorSearch ? "true" : "false";
+        searchOptions.ont_reduced_results = useAncestorSearch ? "" : 'reducedResults="true"';
         searchOptions.ont_search_strategy = inSearchData.Strategy;
         searchOptions.ont_search_string = inSearchData.SearchStr;
 
@@ -140,6 +161,7 @@ i2b2.ONT.ctrlr.Search = {
         let searchCatsCount = 0;
         for (let i=0; i<searchCats.length; i++) {
             searchOptions.ont_category = searchCats[i];
+            searchOptions.ont_self = useAncestorSearch && searchCats[i] !== "@" ? "<self>\\\\" + i2b2.h.Escape(searchCats[i]) + "\\</self>\n" : "";
             i2b2.ONT.ajax.GetNameInfo("ONT:FindBy", searchOptions, scopedCallback);
         }
     },
@@ -306,45 +328,6 @@ i2b2.ONT.ctrlr.Search = {
 
         // display the tree
         i2b2.ONT.view.search.displayResults(treeStruct);
-    },
-
-// ================================================================================================== //
-    loadAncestorResultNodes: function(searchResultKeys) {
-        searchResultKeys = searchResultKeys.filter((key) => key !== undefined && key !== null && key.length > 0);
-        let loadCount = searchResultKeys.length;
-
-        if (loadCount === 0) {
-            i2b2.ONT.ctrlr.Search.renderResultNodes();
-            return;
-        }
-
-        let scopedCallback = new i2b2_scopedCallback();
-        scopedCallback.scope = this;
-        scopedCallback.callback = function(results) {
-            if (!results.error) {
-                let c = results.refXML.getElementsByTagName('concept');
-                for(let i=0; i<1*c.length; i++) {
-                    i2b2.ONT.ctrlr.Search.addResultNode(c[i], i === c.length - 1);
-                }
-            } else {
-                alert("An error has occurred in the Cell's AJAX library.\n Press F12 for more information");
-            }
-
-            loadCount = loadCount - 1;
-            if (loadCount === 0) {
-                i2b2.ONT.ctrlr.Search.renderResultNodes();
-            }
-        };
-
-        let searchOptions = {};
-        searchOptions.ont_max_records = "max='200'";
-        searchOptions.ont_synonym_records = i2b2.ONT.view.nav.params.synonyms;
-        searchOptions.ont_hidden_records = i2b2.ONT.view.nav.params.hiddens;
-
-        for (let i=0; i<searchResultKeys.length; i++) {
-            searchOptions.concept_key_value = searchResultKeys[i];
-            i2b2.ONT.ajax.GetTermInfoWithAncestors("ONT:Search", searchOptions, scopedCallback);
-        }
     },
 
 // ================================================================================================== //
