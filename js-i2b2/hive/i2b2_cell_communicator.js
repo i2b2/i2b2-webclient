@@ -172,8 +172,16 @@ i2b2.hive.communicatorFactory = function(cellCode){
             sMessage = sMessage.replace(/\&amp;/g,'&');
             sMessage = sMessage.replace(/\&/g, '\&amp;');
         }
+        //escape & from password:
+        let sMessageEscapPWD = String(sMessage);
+        let posStartPwd = sMessageEscapPWD.indexOf("<password");
+        posStartPwd = sMessageEscapPWD.indexOf(">",posStartPwd) + 1;
+        let posEndPwd = sMessageEscapPWD.indexOf("</password>", posStartPwd);
+        let pswd = sMessageEscapPWD.substring(posStartPwd, posEndPwd);
+        pswd = pswd.replace(/\&/g, '\&amp;');
+        sMessageEscapPWD = sMessageEscapPWD.substring(0,posStartPwd) + pswd + sMessageEscapPWD.substring(posEndPwd);
 
-        commOptions.postBody = sMessage;
+        commOptions.postBody = sMessageEscapPWD;
         //if (commOptions.asynchronous) {
             commOptions.onSuccess = this._defaultCallbackOK;
             commOptions.onFailure = this._defaultCallbackFAIL;
