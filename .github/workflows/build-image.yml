@@ -1,0 +1,273 @@
+# =============================================================================
+# i2b2 Webclient CI Pipeline
+# =============================================================================
+#
+# Workflow Overview
+# -----------------
+# 1. Build the i2b2-webclient Docker image.
+# 2. Export the image as a Docker archive.
+# 3. Share the archive with downstream jobs using GitHub Artifacts.
+# 4. Deploy an i2b2 stack for UI validation.
+# 5. Execute Selenium-based smoke tests against the deployed application.
+#
+# This workflow is intentionally designed to support both:
+#   • Maintainers with Docker Hub credentials.
+#   • Contributors running the workflow from forks without repository secrets.
+#
+# When Docker Hub credentials are unavailable, the workflow relies entirely on
+# locally built Docker images.
+# =============================================================================
+
+name: Docker Image Build Pipeline
+
+on:
+  push:
+    branches:
+      - '**'
+
+  workflow_dispatch:
+    inputs:
+      core_server_image_branch:
+        description: "Git branch of the i2b2-core-server image"
+        required: true
+        default: master
+        type: string
+
+      database_image_branch:
+        description: "Git branch of the i2b2 database image"
+        required: true
+        default: master
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+
+# =============================================================================
+# Build Docker Image
+# =============================================================================
+
+  build:
+    name: Build i2b2-webclient image
+
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 60
+
+    outputs:
+      has_secrets: ${{ steps.check-secrets.outputs.has_secrets }}
+
+    env:
+      IMAGE_TAG: ${{ github.ref_name }}
+
+    steps:
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Detect Docker Hub credentials
+        id: check-secrets
+        shell: bash
+
+        run: |
+          set -Eeuo pipefail
+
+          if [[ -n "${{ secrets.DOCKER_LOGIN_TOKEN }}" ]]; then
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to Docker Hub
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HOST }}
+          password: ${{ secrets.DOCKER_LOGIN_TOKEN }}
+
+      - name: Build webclient Docker image
+
+        env:
+
+          # Docker registry configuration
+          DOCKER_USERNAME: ${{ secrets.DOCKER_HOST || 'localuser' }}
+          DOCKER_REPOSITORY: ${{ secrets.DOCKER_REPO || 'i2b2' }}
+          HAS_SECRETS: ${{ steps.check-secrets.outputs.has_secrets }}
+
+        shell: bash
+
+        run: |
+          set -Eeuo pipefail
+
+          echo "Building image tag : ${IMAGE_TAG}"
+          echo "Docker credentials : ${{ steps.check-secrets.outputs.has_secrets }}"
+
+          cd docker
+
+          # Build the webclient Docker image.
+          #
+          # The script optionally pushes the image when Docker credentials
+          # are available and always exports a Docker archive for use by
+          # downstream jobs.
+          bash create_docker_image.sh "${IMAGE_TAG}"
+
+      - name: Upload Docker image artifact
+
+        uses: actions/upload-artifact@v4
+
+        with:
+          name: i2b2-webclient-image
+          path: i2b2-webclient.tar
+          retention-days: 1
+
+# =============================================================================
+# UI Smoke Tests
+# =============================================================================
+
+  ui-smoke-test:
+
+    name: UI Smoke Test
+
+    needs: build
+
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 45
+
+    env:
+
+      # Branches used by the deployment helper script
+      CORE_SERVER_BRANCH: ${{ inputs.core_server_image_branch || 'master' }}
+      DATABASE_BRANCH: ${{ inputs.database_image_branch || 'master' }}
+
+      # Docker registry configuration
+      DOCKER_USERNAME: ${{ secrets.DOCKER_HOST || 'localuser' }}
+      DOCKER_REPOSITORY: ${{ secrets.DOCKER_REPO || 'i2b2' }}
+
+      # Selenium test runner image
+      TEST_RUNNER_IMAGE: ${{ secrets.TEST_RUNNER_IMAGE || 'i2b2dev/i2b2:webclient_test_runner_v1' }}
+
+    steps:
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+
+        with:
+          name: i2b2-webclient-image
+
+      - name: Load exported webclient image
+
+        id: load-image
+        shell: bash
+
+        run: |
+          set -Eeuo pipefail
+
+          LOAD_OUTPUT=$(docker load -i i2b2-webclient.tar)
+
+          WEBCLIENT_IMAGE=$(echo "${LOAD_OUTPUT}" | sed -n 's/^Loaded image: //p')
+
+          echo "Loaded image : ${WEBCLIENT_IMAGE}"
+
+          echo "webclient_image=${WEBCLIENT_IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to Docker Hub
+
+        if: needs.build.outputs.has_secrets == 'true'
+
+        uses: docker/login-action@v3
+
+        with:
+          username: ${{ secrets.DOCKER_HOST }}
+          password: ${{ secrets.DOCKER_LOGIN_TOKEN }}
+
+      - name: Checkout i2b2-webclient repository
+
+        uses: actions/checkout@v4
+
+        with:
+          path: i2b2-webclient
+
+      - name: Checkout i2b2-docker repository
+
+        uses: actions/checkout@v4
+
+        with:
+          repository: i2b2/i2b2-docker
+          path: i2b2-docker
+
+      - name: Deploy i2b2 application stack
+        shell: bash
+        env:
+          HAS_SECRETS: ${{ needs.build.outputs.has_secrets }}
+        run: |
+          set -Eeuo pipefail
+
+          cd i2b2-docker/pg
+
+          WEBCLIENT_IMAGE="${{ steps.load-image.outputs.webclient_image }}"
+
+          CORE_SERVER_IMAGE="${DOCKER_USERNAME}/${DOCKER_REPOSITORY}:i2b2-core-server_${CORE_SERVER_BRANCH}"
+          PGSQL_IMAGE="${DOCKER_USERNAME}/${DOCKER_REPOSITORY}:i2b2-data-pgsql_${DATABASE_BRANCH}"
+
+          echo "Webclient image: ${WEBCLIENT_IMAGE}"
+          echo "Core server image: ${CORE_SERVER_IMAGE}"
+          echo "Database image: ${PGSQL_IMAGE}"
+
+          if [ "$HAS_SECRETS" = "true" ]; then
+            sed -i "s|i2b2/i2b2-core-server:\${I2B2_CORE_SERVER_TAG}|${CORE_SERVER_IMAGE}|g" docker-compose.yml
+            sed -i "s|i2b2/i2b2-data-pgsql:\${I2B2_DATA_PGSQL_TAG}|${PGSQL_IMAGE}|g" docker-compose.yml
+          fi
+
+          sed -i "s|i2b2/i2b2-webclient:\${I2B2_WEBCLIENT_TAG}|${WEBCLIENT_IMAGE}|g" docker-compose.yml
+
+          docker compose up -d
+
+      - name: Wait for application startup
+
+        shell: bash
+
+        run: |
+          set -Eeuo pipefail
+
+          # Allow the application stack to finish initialization
+          # before executing Selenium smoke tests.
+          sleep 100
+
+      - name: Execute Selenium smoke tests
+
+        shell: bash
+
+        run: |
+          set -Eeuo pipefail
+
+          chmod +x \
+            "${{ github.workspace }}/i2b2-webclient/ui-tests/tests/login/test_smoke_login.py"
+          
+          docker run --rm \
+            --network i2b2-net \
+            -v "${{ github.workspace }}/i2b2-webclient/ui-tests/tests/login:/tests" \
+            "${TEST_RUNNER_IMAGE}" \
+            python /tests/test_smoke_login.py
+
+      - name: Collect Docker logs
+        if: failure()
+
+        shell: bash
+
+        run: |
+          cd i2b2-docker/pg
+          docker compose logs
+
+      - name: Stop i2b2 application
+        if: always()
+
+        shell: bash
+
+        run: |
+          cd i2b2-docker/pg
+          docker compose down -v
